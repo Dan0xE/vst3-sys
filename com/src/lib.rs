@@ -80,7 +80,7 @@ pub trait ProductionComInterface<T: IUnknown>: ComInterface {
 #[macro_export]
 macro_rules! vtable {
     ($class:ty: $interface:ident, $offset:path) => {
-        <dyn $interface as $crate::ProductionComInterface<$class>>::vtable::<$offset>();
+        <dyn $interface as $crate::ProductionComInterface<$class>>::vtable::<$offset>()
     };
 }
 

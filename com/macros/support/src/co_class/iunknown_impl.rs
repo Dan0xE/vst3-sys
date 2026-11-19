@@ -155,12 +155,21 @@ pub fn gen_query_interface<S: ::std::hash::BuildHasher>(
             riid: *const vst3_com::sys::IID,
             ppv: *mut *mut std::ffi::c_void
         ) -> vst3_com::sys::HRESULT {
-            let riid = &*riid;
+            if ppv.is_null() {
+                return vst3_com::sys::E_INVALIDARG;
+            }
+            if riid.is_null() {
+                std::ptr::write_unaligned(ppv, std::ptr::null_mut::<std::ffi::c_void>());
+                return vst3_com::sys::E_INVALIDARG;
+            }
+
+            let riid_val = std::ptr::read_unaligned(riid);
+            let riid = &riid_val;
 
             if riid == &vst3_com::interfaces::iunknown::IID_IUNKNOWN {
-                *ppv = &self.#first_vptr_field as *const _ as *mut std::ffi::c_void;
+                std::ptr::write_unaligned(ppv, &self.#first_vptr_field as *const _ as *mut std::ffi::c_void);
             } #base_match_arms #aggr_match_arms else {
-                *ppv = std::ptr::null_mut::<std::ffi::c_void>();
+                std::ptr::write_unaligned(ppv, std::ptr::null_mut::<std::ffi::c_void>());
                 return vst3_com::sys::E_NOINTERFACE;
             }
 
@@ -179,7 +188,7 @@ pub fn gen_base_match_arms(base_interface_idents: &[Ident]) -> HelperTokenStream
 
         quote!(
             else if #match_condition {
-                *ppv = &self.#vptr_field_ident as *const _ as *mut std::ffi::c_void;
+                std::ptr::write_unaligned(ppv, &self.#vptr_field_ident as *const _ as *mut std::ffi::c_void);
             }
         )
     });
@@ -204,14 +213,14 @@ pub fn gen_aggregate_match_arms<S: ::std::hash::BuildHasher>(
         quote!(
             else if #first_aggr_match_condition #(#rem_aggr_match_conditions)* {
                 if self.#aggr_field_ident.is_null() {
-                    *ppv = std::ptr::null_mut::<std::ffi::c_void>();
+                    std::ptr::write_unaligned(ppv, std::ptr::null_mut::<std::ffi::c_void>());
                     return vst3_com::sys::E_NOINTERFACE;
                 }
 
                 let mut aggr_interface_ptr = vst3_com::VstPtr::<dyn vst3_com::interfaces::iunknown::IUnknown>::new(self.#aggr_field_ident as *mut _);
                 let hr = aggr_interface_ptr.query_interface(riid, ppv);
                 if vst3_com::sys::FAILED(hr) {
-                    *ppv = std::ptr::null_mut::<std::ffi::c_void>();
+                    std::ptr::write_unaligned(ppv, std::ptr::null_mut::<std::ffi::c_void>());
                     return vst3_com::sys::E_NOINTERFACE;
                 }
 

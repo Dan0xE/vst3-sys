@@ -141,12 +141,21 @@ fn gen_inner_query_interface(
     quote!(
         pub(crate) fn inner_query_interface(&self, riid: *const vst3_com::sys::IID, ppv: *mut *mut std::ffi::c_void) -> vst3_com::sys::HRESULT {
             unsafe {
-                let riid = &*riid;
+                if ppv.is_null() {
+                    return vst3_com::sys::E_INVALIDARG;
+                }
+                if riid.is_null() {
+                    std::ptr::write_unaligned(ppv, std::ptr::null_mut::<std::ffi::c_void>());
+                    return vst3_com::sys::E_INVALIDARG;
+                }
+
+                let riid_val = std::ptr::read_unaligned(riid);
+                let riid = &riid_val;
 
                 if riid == &vst3_com::interfaces::iunknown::IID_IUNKNOWN {
-                    *ppv = &self.#non_delegating_iunknown_field_ident as *const _ as *mut std::ffi::c_void;
+                    std::ptr::write_unaligned(ppv, &self.#non_delegating_iunknown_field_ident as *const _ as *mut std::ffi::c_void);
                 } #base_match_arms #aggr_match_arms else {
-                    *ppv = std::ptr::null_mut::<std::ffi::c_void>();
+                    std::ptr::write_unaligned(ppv, std::ptr::null_mut::<std::ffi::c_void>());
                     return vst3_com::sys::E_NOINTERFACE;
                 }
 
